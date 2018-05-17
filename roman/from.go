@@ -25,15 +25,26 @@ const (
 
 type numeral int
 
-var values = map[rune]numeral{
-	'M': M,
-	'D': D,
-	'C': C,
-	'L': L,
-	'X': X,
-	'V': V,
-	'I': I,
-}
+var (
+	values = map[rune]numeral{
+		'M': M,
+		'D': D,
+		'C': C,
+		'L': L,
+		'X': X,
+		'V': V,
+		'I': I,
+	}
+	subtractors = map[numeral]numeral{
+		I: 0,
+		V: I,
+		X: I,
+		L: X,
+		C: X,
+		D: C,
+		M: C,
+	}
+)
 
 const (
 	maxOccurs = 3
@@ -56,24 +67,61 @@ type parser struct {
 	sequences []sequence
 }
 
+func newSeq(n numeral) *sequence {
+	return &sequence{
+		num:        n,
+		occurs:     1,
+		subtractor: subtractors[n],
+	}
+}
+
 func (p *parser) receive(n numeral) error {
 	// Accept the numeral if:
 	//
 	l := len(p.sequences)
 	if l == 0 {
 		// Accept the first numeral
-		p.sequences = append(p.sequences, sequence{num: n, occurs: 1})
+		p.sequences = append(p.sequences, *newSeq(n))
 		return nil
 	}
-	s := p.sequences[l-1]
-	// More of the same numeral
+	s := &(p.sequences[l-1])
+	// More of the same numeral. Allow maxOccurs + 1 if one has been used for subtraction
 	if n == s.num {
-		if s.occurs == maxOccurs {
+		if s.occurs == maxOccurs && !s.haveSubtract {
 			return errors.New("maximum occurences exceeded")
 		}
-		p.sequences[l-1].occurs = s.occurs + 1
+
+		s.occurs++
 		return nil
 	}
+	if n < s.num {
+		if n != s.subtractor {
+			return errors.New("invalid order")
+		}
+		if s.haveSubtract {
+			return errors.New("multiple subtractors")
+		}
+
+		if s.occurs > 1 {
+			return errors.New("subtracting from multiple occurrence")
+		}
+		// Has this subractor been used as an addor, e.g. IVI
+		if l > 1 {
+			prev := &(p.sequences[l-2])
+			if n == prev.num && !prev.haveSubtract {
+				return errors.New("reuse as subractor")
+			}
+			// Are we subtracting from a numeral used as an addor?
+
+		}
+		s.haveSubtract = true
+		// Reset the occurrences as this now doesn't count
+		//s.occurs = 0
+		return nil
+	}
+	// It's a new larger number
+	p.sequences = append(p.sequences, *newSeq(n))
+
 	return nil
 }
 
