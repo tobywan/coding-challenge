@@ -199,6 +199,7 @@ func TestCharacterErrors(t *testing.T) {
 	tcs := []errCase{
 		{"MMMMMm", fmt.Sprintf(format, 'm', "MMMMMm")},
 		{".", fmt.Sprintf(format, '.', ".")},
+		{"X1234-_X", fmt.Sprintf(format, '1', "X1234-_X")},
 	}
 
 	for _, tc := range tcs {
